@@ -14,11 +14,23 @@ module.exports = function(grunt) {
         concat: {
             options: {
                 stripBanners: true,
-                separator: ''
+                separator: '\n',
+                banner: '// Last time updated at <%= grunt.template.today("dddd, mmmm dS, yyyy, h:MM:ss TT") %> \n\n'
             },
             dist: {
                 src: [
-                    'DetectRTC.js'
+                    'dev/head.js',
+                    'dev/common.js',
+                    'dev/getBrowserInfo.js',
+                    'dev/detectPrivateBrowsing.js',
+                    'dev/isMobile.js',
+                    'dev/detectDesktopOS.js',
+                    'dev/detectOSName.js',
+                    'dev/detectCaptureStream.js',
+                    'dev/DetectLocalIPAddress.js',
+                    'dev/checkDeviceSupport.js',
+                    'dev/DetectRTC.js',
+                    'dev/tail.js'
                 ],
                 dest: 'DetectRTC.js',
             },
@@ -33,7 +45,8 @@ module.exports = function(grunt) {
         },
         uglify: {
             options: {
-                mangle: false
+                mangle: false,
+                banner: '// Last time updated at <%= grunt.template.today("dddd, mmmm dS, yyyy, h:MM:ss TT") %> \n\n'
             },
             my_target: {
                 files: {
@@ -43,6 +56,7 @@ module.exports = function(grunt) {
         },
         jsbeautifier: {
             files: [
+                'dev/*.js',
                 'DetectRTC.js',
                 'Gruntfile.js'
             ],
@@ -103,5 +117,5 @@ module.exports = function(grunt) {
 
     // set default tasks to run when grunt is called without parameters
     // http://gruntjs.com/api/grunt.task
-    grunt.registerTask('default', ['concat', 'jsbeautifier', 'jshint', 'uglify']);
+    grunt.registerTask('default', ['concat', 'jsbeautifier', /*'jshint',*/ 'uglify']);
 };

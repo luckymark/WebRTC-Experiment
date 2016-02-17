@@ -4,6 +4,8 @@
 /**
  * DiskStorage is a standalone object used by {@link RecordRTC} to store recorded blobs in IndexedDB storage.
  * @summary Writing blobs into IndexedDB.
+ * @license {@link https://github.com/muaz-khan/RecordRTC#license|MIT}
+ * @author {@link http://www.MuazKhan.com|Muaz Khan}
  * @example
  * DiskStorage.Store({
  *     audioBlob: yourAudioBlob,
@@ -22,6 +24,7 @@
  * @property {function} Store - This method stores blobs in IndexedDB.
  * @property {function} onError - This function is invoked for any known/unknown error.
  * @property {string} dataStoreName - Name of the ObjectStore created in IndexedDB storage.
+ * @see {@link https://github.com/muaz-khan/RecordRTC|RecordRTC Source Code}
  */
 
 
@@ -36,7 +39,28 @@ var DiskStorage = {
      */
     init: function() {
         var self = this;
-        var indexedDB = window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB || window.OIndexedDB || window.msIndexedDB;
+
+        if (typeof indexedDB === 'undefined' || typeof indexedDB.open === 'undefined') {
+            console.error('IndexedDB API are not available in this browser.');
+            return;
+        }
+
+        if (typeof webkitIndexedDB !== 'undefined') {
+            indexedDB = webkitIndexedDB;
+        }
+
+        if (typeof mozIndexedDB !== 'undefined') {
+            indexedDB = mozIndexedDB;
+        }
+
+        if (typeof OIndexedDB !== 'undefined') {
+            indexedDB = OIndexedDB;
+        }
+
+        if (typeof msIndexedDB !== 'undefined') {
+            indexedDB = msIndexedDB;
+        }
+
         var dbVersion = 1;
         var dbName = this.dbName || location.href.replace(/\/|:|#|%|\.|\[|\]/g, ''),
             db;

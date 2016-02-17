@@ -4,8 +4,8 @@
 /**
  * MRecordRTC runs top over {@link RecordRTC} to bring multiple recordings in single place, by providing simple API.
  * @summary MRecordRTC stands for "Multiple-RecordRTC".
- * @license {@link https://www.webrtc-experiment.com/licence/|MIT}
- * @author {@link https://www.MuazKhan.com|Muaz Khan}
+ * @license {@link https://github.com/muaz-khan/RecordRTC#license|MIT}
+ * @author {@link http://www.MuazKhan.com|Muaz Khan}
  * @typedef MRecordRTC
  * @class
  * @example
@@ -19,6 +19,7 @@
  * recorder.startRecording();
  * @see For further information:
  * @see {@link https://github.com/muaz-khan/RecordRTC/tree/master/MRecordRTC|MRecordRTC Source Code}
+ * @param {MediaStream} mediaStream - MediaStream object fetched using getUserMedia API or generated using captureStreamUntilEnded or WebAudio API.
  */
 
 function MRecordRTC(mediaStream) {
@@ -140,6 +141,9 @@ function MRecordRTC(mediaStream) {
      *     var videoBlob = recording.video;
      *     var gifBlob   = recording.gif;
      * });
+     * // or
+     * var audioBlob = recorder.getBlob().audio;
+     * var videoBlob = recorder.getBlob().video;
      */
     this.getBlob = function(callback) {
         var output = {};
@@ -159,6 +163,8 @@ function MRecordRTC(mediaStream) {
         if (callback) {
             callback(output);
         }
+
+        return output;
     };
 
     /**
@@ -186,7 +192,7 @@ function MRecordRTC(mediaStream) {
         });
 
         function getDataURL(blob, callback00) {
-            if (!!window.Worker) {
+            if (typeof Worker !== 'undefined') {
                 var webWorker = processInWebWorker(function readFile(_blob) {
                     postMessage(new FileReaderSync().readAsDataURL(_blob));
                 });
@@ -207,13 +213,21 @@ function MRecordRTC(mediaStream) {
 
         function processInWebWorker(_function) {
             var blob = URL.createObjectURL(new Blob([_function.toString(),
-                'this.onmessage =  function (e) {readFile(e.data);}'
+                'this.onmessage =  function (e) {' + _function.name + '(e.data);}'
             ], {
                 type: 'application/javascript'
             }));
 
             var worker = new Worker(blob);
-            URL.revokeObjectURL(blob);
+            var url;
+            if (typeof URL !== 'undefined') {
+                url = URL;
+            } else if (typeof webkitURL !== 'undefined') {
+                url = webkitURL;
+            } else {
+                throw 'Neither URL nor webkitURL detected.';
+            }
+            url.revokeObjectURL(blob);
             return worker;
         }
     };

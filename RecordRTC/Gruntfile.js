@@ -14,17 +14,19 @@ module.exports = function(grunt) {
         concat: {
             options: {
                 stripBanners: true,
-                separator: ''
+                separator: '\n',
+                banner: '// Last time updated at <%= grunt.template.today("dddd, mmmm dS, yyyy, h:MM:ss TT") %> \n\n'
             },
             dist: {
                 src: [
                     'dev/head.js',
                     'dev/RecordRTC.js',
+                    'dev/RecordRTC-Configuration.js',
+                    'dev/GetRecorderType.js',
                     'dev/MRecordRTC.js',
                     'dev/Cross-Browser-Declarations.js',
                     'dev/Storage.js',
                     'dev/MediaStreamRecorder.js',
-                    'dev/StereoRecorder.js',
                     'dev/StereoAudioRecorder.js',
                     'dev/CanvasRecorder.js',
                     'dev/WhammyRecorder.js',
@@ -43,7 +45,8 @@ module.exports = function(grunt) {
                     './PHP-and-FFmpeg/*.html',
                     './RecordRTC-over-Socketio/*.html',
                     './RecordRTC-to-Nodejs/static/*.html',
-                    './RecordRTC-to-PHP/*.html'
+                    './RecordRTC-to-PHP/*.html',
+                    './*.html'
                 ],
                 options: {
                     'tag-pair': true
@@ -52,11 +55,66 @@ module.exports = function(grunt) {
         },
         jshint: {
             options: {
-                ignores: [],
-                // use default .jshintrc files
-                jshintrc: true
+
+                globals: {
+                    webkitIndexedDB: true,
+                    mozIndexedDB: true,
+                    OIndexedDB: true,
+                    msIndexedDB: true,
+                    indexedDB: true,
+                    FileReaderSync: true,
+                    postMessage: true,
+                    Whammy: true,
+                    WhammyRecorder: true,
+                    MediaStreamRecorder: true,
+                    StereoAudioRecorder: true,
+                    RecordRTC: true,
+                    MRecordRTC: true,
+                    URL: true,
+                    webkitURL: true,
+                    DiskStorage: true,
+                    requestAnimationFrame: true,
+                    cancelAnimationFrame: true,
+                    webkitRequestAnimationFrame: true,
+                    webkitCancelAnimationFrame: true,
+                    mozRequestAnimationFrame: true,
+                    mozCancelAnimationFrame: true,
+                    MediaStream: true,
+                    webkitMediaStream: true,
+                    html2canvas: true,
+                    GifRecorder: true,
+                    GIFEncoder: true,
+                    MediaRecorder: true,
+                    webkitAudioContext: true,
+                    mozAudioContext: true,
+                    AudioContext: true,
+                    JSON: true,
+                    typeof: true,
+                    define: true
+                },
+                browser: true,
+                browserify: true,
+                node: true,
+                camelcase: true,
+                curly: true,
+                devel: true,
+                eqeqeq: true,
+                forin: false,
+                globalstrict: true,
+                quotmark: true,
+                undef: true,
+                //es5: true,
+                funcscope: true,
+                shadow: true, //----should be false?
+                typed: true,
+                worker: true
             },
-            files: ['RecordRTC.js']
+            files: ['RecordRTC.js'],
+            ignore_warning: {
+                options: {
+                    '-W015': true
+                }
+            }
         },
         uglify: {
             options: {
@@ -72,13 +130,7 @@ module.exports = function(grunt) {
             files: [
                 // 'RecordRTC.js',
                 'dev/*.js',
-                'Gruntfile.js',
-                './Canvas-Recording/*.html',
-                './MRecordRTC/*.html',
-                './PHP-and-FFmpeg/*.html',
-                './RecordRTC-over-Socketio/*.html',
-                './RecordRTC-to-Nodejs/static/*.html',
-                './RecordRTC-to-PHP/*.html'
+                'Gruntfile.js'
             ],
             options: {
                 js: {

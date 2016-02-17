@@ -1,6 +1,6 @@
-# [FileBufferReader.js](https://github.com/muaz-khan/FileBufferReader) [![npm](https://img.shields.io/npm/v/fbr.svg)](https://npmjs.org/package/fbr) [![downloads](https://img.shields.io/npm/dm/fbr.svg)](https://npmjs.org/package/fbr)
+# [FileBufferReader.js](https://github.com/muaz-khan/FileBufferReader) / [Demo](https://www.WebRTC-Experiment.com/FileBufferReader/)
 
-Demo: https://www.WebRTC-Experiment.com/FileBufferReader/
+[![npm](https://img.shields.io/npm/v/fbr.svg)](https://npmjs.org/package/fbr) [![downloads](https://img.shields.io/npm/dm/fbr.svg)](https://npmjs.org/package/fbr)
 
 Using FileBufferReader.js, you can:
 
@@ -32,9 +32,9 @@ To use it:
 <script src="./node_modules/fbr/FileBufferReader.js"></script>
 ```
 
-## fbr-client
+## [fbr-client](https://github.com/muaz-khan/FileBufferReader/tree/master/fbr-client)
 
-You can even try socket.io file sharing client:
+You can even try [socket.io file sharing client](https://github.com/muaz-khan/FileBufferReader/tree/master/fbr-client):
 
 ```
 npm install fbr-client
@@ -46,7 +46,7 @@ Then run the server:
 node ./node_modules/fbr-client/server.js
 ```
 
-Then open: `http://localhost:8888/` or `http://local-ip:8888/`.
+Then open: `http://localhost:8888/` or `http://127.0.0.1:8888/`.
 
 ## FileBufferReader API
 
@@ -62,11 +62,14 @@ Then open: `http://localhost:8888/` or `http://local-ip:8888/`.
 
 ```
 https://cdn.webrtc-experiment.com/FileBufferReader.js
+
+# or
+https://cdn.rawgit.com/muaz-khan/FileBufferReader/master/FileBufferReader.js
 ```
 
 ## 2. Select File (optional step)
 
-You can use `input[type=file].onchange` instead.
+You can use `input[type=file].onchange` instead, which is **strongly recommended** over using `FileSelecter` because `FileSelector` object is incapable to handle failures or situations where browser doesn't fires `onchange` event.
 
 ```javascript
 var fileSelector = new FileSelector();
@@ -79,21 +82,19 @@ btnSelectFile.onclick = function() {
 };
 ```
 
-You can select multiple files using `selectMultipleFiles` method.
-
 ## 3. Read Buffers
 
 ```javascript
 var fileBufferReader = new FileBufferReader();
 
-fileBufferReader.readAsArrayBuffer(file, function(uuid) {
-    // var file         = fileBufferReader.chunks[uuid];
+fileBufferReader.readAsArrayBuffer(file, function(fileUUID) {
+    // var file         = fileBufferReader.chunks[fileUUID];
     // var listOfChunks = file.listOfChunks;
     
     // get first chunk, and send using WebRTC data channels
     // NEVER send chunks in loop; otherwise you'll face issues in slow networks
     // remote peer should notify if it is ready for next chunk
-    fileBufferReader.getNextChunk(uuid, function(nextChunk, isLastChunk) {
+    fileBufferReader.getNextChunk(fileUUID, function(nextChunk, isLastChunk) {
         if(isLastChunk) {
             alert('File Successfully sent.');
         }
@@ -107,13 +108,8 @@ fileBufferReader.readAsArrayBuffer(file, function(uuid) {
 
 ```javascript
 var extra = {
-    chunkSize: 15 * 1000, // Firefox' receiving limit is 16k
-    senderUserName: 'someone',
-    autoSaveToDisk: true,
-    coords: {
-        x: 10,
-        y: 20
-    }
+    chunkSize: 15 * 1000,    // Firefox' receiving limit is 16k
+    userid: 'sender-userid'  // MOST USEFUL object
 };
 
 fileBufferReader.readAsArrayBuffer(file, callback, extra);
@@ -162,6 +158,55 @@ datachannel.onmessage = function(event) {
 
 ## 5. File progress helpers
 
+Link this script:
+
+```
+https://cdn.webrtc-experiment.com/FileProgressBarHandler.js
+
+# or
+https://cdn.rawgit.com/muaz-khan/RTCMultiConnection/master/RTCMultiConnection-v3.0/dev/FileProgressBarHandler.js
+```
+
+Add a files-div:
+
+```html
+<div id="files-container"></div>
+```
+
+Add following code:
+
+```javascript
+// this line is optional
+// however it allows you set the <DIV> for progress-bars and files-preview
+fileBufferReader.filesContainer = document.getElementById('files-container');
+
+// this line sets "onFileStart", "onFileProgress" and "onFileEnd" events (see below lines)
+FileProgressBarHandler.handle(fileBufferReader);
+
+fileBufferReader.onBegin    = fileBufferReader.onFileStart;
+fileBufferReader.onProgress = fileBufferReader.onFileProgress;
+fileBufferReader.onEnd      = fileBufferReader.onFileEnd;
+```
+
+Above snippet can be written as following:
+
+```javascript
+var options = {};
+
+// this line is optional
+// however it allows you set the <DIV> for progress-bars and files-preview
+options.filesContainer = document.getElementById('files-container');
+
+// this line sets "onFileStart", "onFileProgress" and "onFileEnd" events (see below lines)
+FileProgressBarHandler.handle(options);
+
+fileBufferReader.onBegin    = options.onFileStart;
+fileBufferReader.onProgress = options.onFileProgress;
+fileBufferReader.onEnd      = options.onFileEnd;
+```
+
+If you're **NOT interested** in above `FileProgressBarHandler.js`:
+
 ```javascript
 var progressHelper = {};
 var outputPanel = document.body;
@@ -209,20 +254,233 @@ fileBufferReader.onProgress = FileHelper.onProgress;
 fileBufferReader.onEnd      = FileHelper.onEnd;
 ```
 
+## Sharing with multiple users?
+
+```javascript
+fbr.readAsArrayBuffer(file, function(fileUUID) {
+    ['first-user', 'second-user', 'third-user'].forEach(function(userid) {
+        fbr.getNextChunk(fileUUID, function(nextChunk, isLastChunk) {
+            specific_datachannel.send(nextChunk);
+        }, userid);
+    });
+});
+
+datachannel.onmessage = function(event) {
+    fbr.getNextChunk(message.uuid, function(nextChunk, isLastChunk) {
+        specific_datachannel.send(nextChunk);
+    }, specific_userid);
+};
+```
+
+> Pass specific-userid as 3rd argument over `getNextChunk` method.
+
+To uniquely identify progress-bars for each user, watch for `remoteUserId` object:
+
+```javascript
+FileHelper.onBegin = function(file) {
+    if(file.remoteUserId) {
+        // file is being shared with multiple users
+    }
+};
+
+FileHelper.onEnd = function(file) {
+    if(file.remoteUserId) {
+        // file is being shared with multiple users
+    }
+};
+
+FileHelper.onProgress = function(chunk) {
+    if(chunk.remoteUserId) {
+        // file is being shared with multiple users
+    }
+};
+```
+
+## Advance Usages
+
+```javascript
+var fbr = new FileBufferReader();
+fbr.readAsArrayBuffer(file, function(fileUUID) {
+    // don't call "getNextChunk"
+    // instead, try to process/use/acccess chunks yourself
+
+    var thisFileChunks = fbr.chunks[fileUUID];
+    var numberOfFileChunks = thisFileChunks[0].maxChunks;
+
+    var arrayOfRealBuffers = [];
+
+    for(var i = 1; i < numberOfFileChunks; i++) {
+        var fileChunk = thisFileChunks[i];
+        var realArrayBufferObject = fileChunk.buffer;
+        arrayOfRealBuffers.push(realArrayBufferObject);
+    }
+
+    var fileBlob = new Blob(realArrayBufferObject, {
+        type: thisFileChunks[0].type
+    });
+
+    var blobURL = URL.createObjectURL(fileBlob);
+    document.write('<iframe style="width: 100%; height: 100%; border:0; " src="' +  blobURL + '"></iframe>');
+});
+```
+
+The structure of `fileBufferReader.chunks` object looks like this:
+
+```javascript
+fileBufferReader.chunks = 
+{
+    // "4152661527041346" is file-uuid
+   "4152661527041346":{
+
+      // "0" index helps firing "onStart" event.
+      "0":{
+         "currentPosition":0,
+         "uuid":"4152661527041346",
+         "maxChunks":20,
+         "size":298540,
+         "name":"WebRTC.png",
+         "type":"image/png",
+         "lastModifiedDate":"Wed Oct 14 2015 15:51:26 GMT+0500 (PKT)",
+         "start":true,
+         "userid":0,
+         "extra":{
+            "userid":0
+         }
+      },
+
+      // index "1" to "maxChunks" are the real file-chunks
+
+      "1":{
+         "uuid":"4152661527041346",
+
+         // this is the real ArrayBuffer object
+         "buffer":{},
+
+         "currentPosition":1,
+         "maxChunks":20,
+         "size":298540,
+         "name":"WebRTC.png",
+         "lastModifiedDate":"Wed Oct 14 2015 15:51:26 GMT+0500 (PKT)",
+         "type":"image/png",
+         "userid":0,
+         "extra":{  
+            "userid":0
+         }
+      },
+
+      ....
+      ....
+
+      // this is the last file-chunk
+      // here "currentPosition===maxChunks"
+      "20":{  
+         "uuid":"4152661527041346",
+         "buffer":{},
+         "currentPosition":20,
+         "maxChunks":20,
+         "size":298540,
+         "name":"WebRTC.png",
+         "lastModifiedDate":"Wed Oct 14 2015 15:51:26 GMT+0500 (PKT)",
+         "type":"image/png",
+         "userid":0,
+         "extra":{  
+            "userid":0
+         }
+      },
+
+      // this one helps firing "onEnd" event
+      "21":{  
+         "currentPosition":21,
+         "uuid":"4152661527041346",
+         "maxChunks":20,
+         "size":298540,
+         "name":"WebRTC.png",
+         "lastModifiedDate":"Wed Oct 14 2015 15:51:26 GMT+0500 (PKT)",
+         "url":"blob:http%3A//domain/fe5a20d0-cdb4-4f4e-9de7-1a14340fc402",
+         "type":"image/png",
+         "end":true,
+         "userid":0,
+         "extra":{  
+            "userid":0
+         }
+      },
+
+      // this is optionally used to detect which chunk is being shared
+      // you should skip it.
+      "currentPosition":0
+   }
+}
+```
+
+You can see that real file-chunks starts from `1` and ends before `length-1`.
+
+E.g.
+
+```javascript
+var fileChunks = fbr.chunks['file-uuid'];
+var allFileIndices = Object.keys(fileChunks);
+
+var allFileBuffers = [];
+for(var chunkIndex = 1; chunkIndex < allFileIndices.length; i++) {
+    var chunk = fileChunks[chunkIndex];
+    allFileBuffers.push(chunk.buffer);
+}
+```
+
+## `FileConverter`
+
+This global object exposes two methods:
+
+1. `ConvertToArrayBuffer`
+2. `ConvertToObject`
+
+Here is how to use these methods:
+
+```javascript
+var yourObject = {
+    x: 0,
+    y: 1,
+    str: 'string',
+    bool: true
+};
+
+FileConverter.ConvertToArrayBuffer(yourObject, function(arrayBuffer) {
+    alert(arrayBuffer.byteLength);
+
+    // to convert back to "object"
+    FileConverter.ConvertToObject(arrayBuffer, function(yourObject) {
+        alert( JSON.stringify(yourObject) );
+    });
+});
+```
+
+When you call `getNextChunk`, the `FileBufferReader` instance checks for `currentPosition` and returns buffer using following snippet:
+
+```javascript
+// this method explains insights of FileBufferReader
+fbr.getNextChunk = function(fileUUId, callback) {
+    var fileChunks = fbr.chunks[fileUUID];
+    var currentPosition = fileChunks.currentPosition;
+
+    var nextChunk = fileChunks[currentPosition];
+    FileConverter.ConvertToArrayBuffer(nextChunk, function(buffer) {
+        // you can see that "callback" is passed two arguments
+        // 1) the converted buffer
+        // 2) "isLastChunk" boolean
+        callback(buffer, currentPosition == nextChunk.maxChunks);
+    });
+};
+
+// and your code calls above method as following;
+fbr.getNextChunks('file-uuid', function(buffer) {
+    webrtc.channel.send(buffer);
+});
+```
+
 ## Applications using FileBufferReader
 
-1. [RTCMultiConnection.js](http://www.RTCMultiConnection.org/)
-
-## Credits
-
-[Muaz Khan](https://github.com/muaz-khan):
-
-1. Personal Webpage: http://www.muazkhan.com
-2. Email: muazkh@gmail.com
-3. Twitter: https://twitter.com/muazkh and https://twitter.com/WebRTCWeb
-4. Google+: https://plus.google.com/+WebRTC-Experiment
-5. Facebook: https://www.facebook.com/WebRTC
+1. [RTCMultiConnection.js](https://githbu.com/RTCMultiConnection)
 
 ## License
 
-[FileBufferReader.js](https://github.com/muaz-khan/FileBufferReader) is released under [MIT licence](https://www.webrtc-experiment.com/licence/) . Copyright (c) [Muaz Khan](https://plus.google.com/+MuazKhan).
+[FileBufferReader.js](https://github.com/muaz-khan/FileBufferReader) is released under [MIT licence](https://www.webrtc-experiment.com/licence/) . Copyright (c) [Muaz Khan](http://www.muazkhan.com/).

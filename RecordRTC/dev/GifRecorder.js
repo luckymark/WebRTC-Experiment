@@ -2,22 +2,30 @@
 // GifRecorder.js
 
 /**
- * GifRecorder is standalone calss used by {@link RecordRTC} to record video as animated gif image.
+ * GifRecorder is standalone calss used by {@link RecordRTC} to record video or canvas into animated gif.
+ * @license {@link https://github.com/muaz-khan/RecordRTC#license|MIT}
+ * @author {@link http://www.MuazKhan.com|Muaz Khan}
  * @typedef GifRecorder
  * @class
  * @example
- * var recorder = new GifRecorder(mediaStream);
+ * var recorder = new GifRecorder(mediaStream || canvas || context, { width: 1280, height: 720, frameRate: 200, quality: 10 });
  * recorder.record();
  * recorder.stop(function(blob) {
  *     img.src = URL.createObjectURL(blob);
  * });
- * @param {MediaStream} mediaStream - MediaStream object fetched using getUserMedia API or generated using captureStreamUntilEnded or WebAudio API.
+ * @see {@link https://github.com/muaz-khan/RecordRTC|RecordRTC Source Code}
+ * @param {MediaStream} mediaStream - MediaStream object or HTMLCanvasElement or CanvasRenderingContext2D.
+ * @param {object} config - {disableLogs:true, initCallback: function, width: 320, height: 240, frameRate: 200, quality: 10}
  */
 
-function GifRecorder(mediaStream) {
-    if (!window.GIFEncoder) {
+function GifRecorder(mediaStream, config) {
+    if (typeof GIFEncoder === 'undefined') {
         throw 'Please link: https://cdn.webrtc-experiment.com/gif-recorder.js';
     }
+
+    config = config || {};
+
+    var isHTMLObject = mediaStream instanceof CanvasRenderingContext2D || mediaStream instanceof HTMLCanvasElement;
 
     /**
      * This method records MediaStream.
@@ -27,36 +35,38 @@ function GifRecorder(mediaStream) {
      * recorder.record();
      */
     this.record = function() {
-        if (!this.width) {
-            this.width = video.offsetWidth || 320;
+        if (!isHTMLObject) {
+            if (!config.width) {
+                config.width = video.offsetWidth || 320;
+            }
+
+            if (!this.height) {
+                config.height = video.offsetHeight || 240;
+            }
+
+            if (!config.video) {
+                config.video = {
+                    width: config.width,
+                    height: config.height
+                };
+            }
+
+            if (!config.canvas) {
+                config.canvas = {
+                    width: config.width,
+                    height: config.height
+                };
+            }
+
+            canvas.width = config.canvas.width;
+            canvas.height = config.canvas.height;
+
+            video.width = config.video.width;
+            video.height = config.video.height;
         }
-
-        if (!this.height) {
-            this.height = video.offsetHeight || 240;
-        }
-
-        if (!this.video) {
-            this.video = {
-                width: this.width,
-                height: this.height
-            };
-        }
-
-        if (!this.canvas) {
-            this.canvas = {
-                width: this.width,
-                height: this.height
-            };
-        }
-
-        canvas.width = this.canvas.width;
-        canvas.height = this.canvas.height;
-
-        video.width = this.video.width;
-        video.height = this.video.height;
 
         // external library to record as GIF images
-        gifEncoder = new window.GIFEncoder();
+        gifEncoder = new GIFEncoder();
 
         // void setRepeat(int iter) 
         // Sets the number of times the set of GIF frames should be played. 
@@ -67,7 +77,7 @@ function GifRecorder(mediaStream) {
         // Sets frame rate in frames per second. 
         // Equivalent to setDelay(1000/fps).
         // Using "setDelay" instead of "setFrameRate"
-        gifEncoder.setDelay(this.frameRate || 200);
+        gifEncoder.setDelay(config.frameRate || 200);
 
         // void setQuality(int quality) 
         // Sets quality of color quantization (conversion of images to the 
@@ -76,7 +86,7 @@ function GifRecorder(mediaStream) {
         // but slow processing significantly. 10 is the default, 
         // and produces good color mapping at reasonable speeds. 
         // Values greater than 20 do not yield significant improvements in speed.
-        gifEncoder.setQuality(this.quality || 10);
+        gifEncoder.setQuality(config.quality || 10);
 
         // Boolean start() 
         // This writes the GIF Header and returns false if it fails.
@@ -104,7 +114,7 @@ function GifRecorder(mediaStream) {
                 return;
             }
 
-            if (video.paused) {
+            if (!isHTMLObject && video.paused) {
                 // via: https://github.com/muaz-khan/WebRTC-Experiment/pull/316
                 // Tweak for Android Chrome
                 video.play();
@@ -112,8 +122,8 @@ function GifRecorder(mediaStream) {
 
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            if (self.onGifPreview) {
-                self.onGifPreview(canvas.toDataURL('image/png'));
+            if (config.onGifPreview) {
+                config.onGifPreview(canvas.toDataURL('image/png'));
             }
 
             gifEncoder.addFrame(context);
@@ -121,6 +131,10 @@ function GifRecorder(mediaStream) {
         }
 
         lastAnimationFrame = requestAnimationFrame(drawVideoFrame);
+
+        if (config.initCallback) {
+            config.initCallback();
+        }
     };
 
     /**
@@ -167,10 +181,6 @@ function GifRecorder(mediaStream) {
      */
     this.pause = function() {
         isPausedRecording = true;
-
-        if (!this.disableLogs) {
-            console.debug('Paused recording.');
-        }
     };
 
     /**
@@ -182,20 +192,49 @@ function GifRecorder(mediaStream) {
      */
     this.resume = function() {
         isPausedRecording = false;
+    };
 
-        if (!this.disableLogs) {
-            console.debug('Resumed recording.');
+    /**
+     * This method resets currently recorded data.
+     * @method
+     * @memberof GifRecorder
+     * @example
+     * recorder.clearRecordedData();
+     */
+    this.clearRecordedData = function() {
+        if (!gifEncoder) {
+            return;
         }
+
+        this.pause();
+
+        gifEncoder.stream().bin = [];
     };
 
     var canvas = document.createElement('canvas');
     var context = canvas.getContext('2d');
 
-    var video = document.createElement('video');
-    video.muted = true;
-    video.autoplay = true;
-    video.src = URL.createObjectURL(mediaStream);
-    video.play();
+    if (isHTMLObject) {
+        if (mediaStream instanceof CanvasRenderingContext2D) {
+            context = mediaStream;
+        } else if (mediaStream instanceof HTMLCanvasElement) {
+            context = mediaStream.getContext('2d');
+        }
+    }
+
+    if (!isHTMLObject) {
+        var video = document.createElement('video');
+        video.muted = true;
+        video.autoplay = true;
+
+        if (typeof video.srcObject !== 'undefined') {
+            video.srcObject = mediaStream;
+        } else {
+            video.src = URL.createObjectURL(mediaStream);
+        }
+
+        video.play();
+    }
 
     var lastAnimationFrame = null;
     var startTime, endTime, lastFrameTime;
